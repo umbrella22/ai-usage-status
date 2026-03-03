@@ -1,0 +1,145 @@
+{
+    "name": "ai-usage-status",
+    "displayName": "AI Usage Status",
+    "description": "在 VS Code 状态栏显示多个 AI 供应商的用量状态 (MiniMax, ZHIPU/ZAI 等)",
+    "version": "0.1.0",
+    "publisher": "umbrella22",
+    "icon": "./public/icon.png",
+    "engines": {
+        "vscode": "^1.75.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "main": "./dist/extension.cjs",
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "contributes": {
+        "commands": [
+            {
+                "command": "aiUsageStatus.setup",
+                "title": "AI Usage Status: 配置向导",
+                "category": "AI Usage",
+                "description": "配置 AI 供应商的访问令牌和参数"
+            },
+            {
+                "command": "aiUsageStatus.refresh",
+                "title": "AI Usage Status: 刷新状态",
+                "category": "AI Usage",
+                "description": "手动刷新所有 AI 供应商状态"
+            }
+        ],
+        "configuration": {
+            "title": "AI Usage Status",
+            "properties": {
+                "aiUsageStatus.refreshInterval": {
+                    "type": "number",
+                    "default": 300,
+                    "description": "刷新间隔（秒）",
+                    "order": 1
+                },
+                "aiUsageStatus.language": {
+                    "type": "string",
+                    "enum": [
+                        "zh-CN",
+                        "en-US"
+                    ],
+                    "default": "zh-CN",
+                    "description": "Language / 语言",
+                    "order": 2
+                },
+                "aiUsageStatus.providers": {
+                    "type": "object",
+                    "default": {},
+                    "description": "AI 供应商配置（通过设置向导管理）",
+                    "order": 3
+                },
+                "aiUsageStatus.minimax.enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "启用 MiniMax 供应商",
+                    "order": 10
+                },
+                "aiUsageStatus.minimax.token": {
+                    "type": "string",
+                    "default": "",
+                    "description": "MiniMax API Key",
+                    "order": 11
+                },
+                "aiUsageStatus.minimax.groupId": {
+                    "type": "string",
+                    "default": "",
+                    "description": "MiniMax Group ID",
+                    "order": 12
+                },
+                "aiUsageStatus.minimax.baseUrl": {
+                    "type": "string",
+                    "enum": [
+                        "https://www.minimaxi.com",
+                        "https://www.minimax.io"
+                    ],
+                    "default": "https://www.minimaxi.com",
+                    "description": "MiniMax 平台地址（国内/海外）",
+                    "order": 13
+                },
+                "aiUsageStatus.minimax.modelName": {
+                    "type": "string",
+                    "default": "",
+                    "description": "选择要显示的模型（留空则自动选择）",
+                    "order": 14
+                },
+                "aiUsageStatus.zhipu.enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "启用 ZHIPU 供应商",
+                    "order": 20
+                },
+                "aiUsageStatus.zhipu.authToken": {
+                    "type": "string",
+                    "default": "",
+                    "description": "ZHIPU/ZAI 认证 Token",
+                    "order": 21
+                },
+                "aiUsageStatus.zhipu.baseUrl": {
+                    "type": "string",
+                    "enum": [
+                        "https://api.z.ai",
+                        "https://open.bigmodel.cn"
+                    ],
+                    "default": "https://open.bigmodel.cn",
+                    "description": "ZHIPU/ZAI 平台地址",
+                    "order": 22
+                }
+            }
+        }
+    },
+    "scripts": {
+        "build": "tsdown",
+        "watch": "tsdown --watch",
+        "lint": "tsc -p tsconfig.json --noEmit",
+        "package": "npm run build && vsce package",
+        "prepublish": "npm run build"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.0",
+        "@types/vscode": "^1.75.0",
+        "@vscode/vsce": "^3.7.1",
+        "tsdown": "^0.20.3",
+        "typescript": "^5.7.0"
+    },
+    "keywords": [
+        "ai",
+        "usage",
+        "status",
+        "minimax",
+        "zhipu",
+        "monitor"
+    ],
+    "author": "umbrella22",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/umbrella22/ai-usage-status"
+    }
+}
