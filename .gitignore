@@ -1,0 +1,28 @@
+# Node.js
+node_modules/*
+
+# npm package build outputs
+npm/*/dist/
+npm/vite-plugin-vize/wasm/
+
+# Native (NAPI) build output
+*.node
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+*.tgz
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+dist/*
