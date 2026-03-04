@@ -63,7 +63,9 @@ export function activate(context: vscode.ExtensionContext): void {
           statusBar.update(allUsageData);
 
           // 当token用量为100%时暂停同步
-          const reach100 = allUsageData.some(d => d.primaryUsage.percentage >= 100);
+          const reach100 = allUsageData.some(
+            (d) => d.primaryUsage.percentage >= 100,
+          );
           isSyncPaused = reach100;
         }
 
@@ -85,8 +87,8 @@ export function activate(context: vscode.ExtensionContext): void {
       if (intervalId) clearInterval(intervalId);
 
       const config = vscode.workspace.getConfiguration("aiUsageStatus");
-      // Use configured interval or default to 5 minutes (300 seconds)
-      const interval = config.get<number>("refreshInterval", 300) * 1000;
+      // Use configured interval or default to 60 seconds
+      const interval = config.get<number>("refreshInterval", 60) * 1000;
       intervalId = setInterval(() => updateStatus(), interval);
     };
 

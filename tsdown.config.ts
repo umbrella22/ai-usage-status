@@ -6,6 +6,7 @@ export default defineConfig({
   outDir: "dist",
   clean: true,
   sourcemap: false,
+  minify: true,
   external: ["vscode"],
   platform: "node",
   target: "node18",

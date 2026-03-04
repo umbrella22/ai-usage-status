@@ -44,7 +44,7 @@ export async function showSettingsPanel(
   }));
 
   const globalConfig = vscode.workspace.getConfiguration("aiUsageStatus");
-  const refreshInterval = globalConfig.get<number>("refreshInterval", 300);
+  const refreshInterval = globalConfig.get<number>("refreshInterval", 60);
 
   panel.webview.html = buildSettingsHtml(
     providersData,

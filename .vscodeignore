@@ -6,3 +6,6 @@ tsdown.config.ts
 .gitignore
 **/*.map
 **/*.ts
+*-lock.json
+*-lock.yaml
+*.log

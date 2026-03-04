@@ -25,6 +25,7 @@ interface StatusBarEntry {
 export class StatusBarManager {
   private entries: StatusBarEntry[] = [];
   private nextPriority = 100;
+  private static readonly TOOLTIP_SETTINGS_COMMAND = "aiUsageStatus.setup";
 
   constructor() {}
 
@@ -61,8 +62,7 @@ export class StatusBarManager {
           vscode.StatusBarAlignment.Right,
           this.nextPriority--,
         );
-        // remove command to disable click-to-refresh
-        item.command = undefined;
+        item.command = StatusBarManager.TOOLTIP_SETTINGS_COMMAND;
         item.show();
 
         entry = { item, providerId: data.providerId, subLabel: data.subLabel };
@@ -82,7 +82,7 @@ export class StatusBarManager {
         vscode.StatusBarAlignment.Right,
         this.nextPriority--,
       );
-      item.command = undefined;
+      item.command = StatusBarManager.TOOLTIP_SETTINGS_COMMAND;
       item.text = `$(sync~spin) AI: ${t("loading")}`;
       item.tooltip = "AI Usage Status\n" + t("loading");
       item.show();
@@ -176,30 +176,26 @@ export class StatusBarManager {
       item.text = `$(clock) ${label} ${formatPercentage(percentage)}`;
     }
 
-    // Build tooltip as Markdown
+    // Build tooltip with HTML for precise layout control
     const tooltip = new vscode.MarkdownString("", true);
     tooltip.isTrusted = true;
+    tooltip.supportHtml = true;
     tooltip.supportThemeIcons = true;
 
-    // Header matching Copilot style
+    // Header: Markdown for theme icon + command link support
     const headerTitle = label;
-    // adding a link to the command allows the settings gear to be clickable
-    tooltip.appendMarkdown(`**${headerTitle} Usage**\t\t[$(settings-gear)](command:aiUsageStatus.setup)\n\n`);
+    tooltip.appendMarkdown(
+      `**${headerTitle} Usage** &nbsp; [$(settings-gear)](command:${StatusBarManager.TOOLTIP_SETTINGS_COMMAND})\n\n`,
+    );
+    tooltip.appendMarkdown(`---\n\n`);
 
-    // Add model name if exists
+    // Model name
     if (data.modelName) {
-      tooltip.appendMarkdown(`${t("model", language)}\t\t${data.modelName}\n\n---\n\n`);
+      tooltip.appendMarkdown(`${t("model", language)} ${data.modelName}\n\n`);
     }
 
-    // Show all metrics using a Markdown table for better horizontal layout
+    // Metrics: HTML table for label+usage row, progress bar below
     if (data.metrics.length > 0) {
-      const metricLabel = language === "en-US" ? "Metric" : "指标";
-      const usageLabel = language === "en-US" ? "Usage" : "用量";
-      const progressLabel = language === "en-US" ? "Progress" : "进度";
-
-      tooltip.appendMarkdown(`| ${metricLabel} | ${usageLabel} | ${progressLabel} |\n`);
-      tooltip.appendMarkdown(`| :--- | :--- | :--- |\n`);
-
       for (const metric of data.metrics) {
         let usageText = "";
         if (metric.unit === "%") {
@@ -209,27 +205,26 @@ export class StatusBarManager {
           const totalStr = formatNumber(metric.total, language);
           usageText = `${usedStr} / ${totalStr}`;
         }
-        
-        // Emulate progress bar using unicode block elements
-        const barLength = 15;
-        const filledLength = Math.round((metric.percentage / 100) * barLength);
-        const emptyLength = barLength - Math.max(0, filledLength);
-        const bar = '█'.repeat(Math.max(0, filledLength)) + '░'.repeat(Math.max(0, emptyLength));
-        
-        tooltip.appendMarkdown(`| ${metric.label} | ${usageText} | ${bar} |\n`);
+
+        const progressBarUri = this.createProgressBarDataUri(metric.percentage);
+        tooltip.appendMarkdown(
+          `<table width="100%"><tr><td><b>${metric.label}</b></td><td align="right">${usageText}</td></tr><tr><td colspan="2"><img src="${progressBarUri}" width="100%" height="3" /></td></tr></table>\n\n`,
+        );
       }
-      tooltip.appendMarkdown(`\n\n`);
     }
 
+    // Remaining time
     if (data.remainingTime) {
-      tooltip.appendMarkdown(`---\n\n`);
-      tooltip.appendMarkdown(`${t("remainingTime", language)}: ${translateRemainingTime(data.remainingTime, language)}\n\n`);
+      tooltip.appendMarkdown(
+        `${t("remainingTime", language)}: ${translateRemainingTime(data.remainingTime, language)}\n\n`,
+      );
     }
 
     // Expiry
     if (data.expiry) {
-      tooltip.appendMarkdown(`---\n\n`);
-      tooltip.appendMarkdown(`${t("expiry", language)} ${data.expiry.date} (${translateExpiryText(data.expiry.text, language)})\n\n`);
+      tooltip.appendMarkdown(
+        `${t("expiry", language)} ${data.expiry.date} (${translateExpiryText(data.expiry.text, language)})\n\n`,
+      );
     }
 
     // Usage stats
@@ -238,21 +233,34 @@ export class StatusBarManager {
       const stats = data.usageStats;
       if (stats.lastDayUsage > 0 || stats.weeklyUsage > 0) {
         tooltip.appendMarkdown(`**${t("tokenStats", language)}**\n\n`);
-        
+
         const periodLabel = language === "en-US" ? "Period" : "时间段";
         const tokensLabel = language === "en-US" ? "Tokens" : "用量";
 
-        tooltip.appendMarkdown(`| ${periodLabel} | ${tokensLabel} |\n`);
-        tooltip.appendMarkdown(`| :--- | :--- |\n`);
-        tooltip.appendMarkdown(`| ${t("yesterday", language)} | ${formatNumber(stats.lastDayUsage, language)} |\n`);
-        tooltip.appendMarkdown(`| ${t("last7Days", language)} | ${formatNumber(stats.weeklyUsage, language)} |\n`);
-        tooltip.appendMarkdown(`| ${t("totalUsage", language)} | ${formatNumber(stats.planTotalUsage, language)} |\n\n`);
+        tooltip.appendMarkdown(
+          `<table width="100%"><tr><td><b>${periodLabel}</b></td><td align="right"><b>${tokensLabel}</b></td></tr>` +
+            `<tr><td>${t("yesterday", language)}</td><td align="right">${formatNumber(stats.lastDayUsage, language)}</td></tr>` +
+            `<tr><td>${t("last7Days", language)}</td><td align="right">${formatNumber(stats.weeklyUsage, language)}</td></tr>` +
+            `<tr><td>${t("totalUsage", language)}</td><td align="right">${formatNumber(stats.planTotalUsage, language)}</td></tr></table>\n\n`,
+        );
       }
     }
 
     item.tooltip = tooltip;
-    
-    // Command is now removed to disable click-to-refresh
-    item.command = undefined;
+
+    // Keep item actionable to ensure native hover feedback is visible and stable.
+    item.command = StatusBarManager.TOOLTIP_SETTINGS_COMMAND;
+  }
+
+  private createProgressBarDataUri(percentage: number): string {
+    const clamped = Math.max(0, Math.min(100, percentage));
+    const width = 220;
+    const height = 3;
+    const radius = 1.5;
+    const filledWidth = Math.round((clamped / 100) * width);
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect x="0" y="0" width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="#142F46" />${filledWidth > 0 ? `<rect x="0" y="0" width="${filledWidth}" height="${height}" rx="${radius}" ry="${radius}" fill="#0064BD" />` : ""}</svg>`;
+
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
   }
 }

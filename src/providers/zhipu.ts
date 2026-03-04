@@ -82,11 +82,19 @@ export class ZhipuProvider implements AIProvider {
         description: "选择平台地址",
         required: true,
       },
+      {
+        key: "modelName",
+        label: "模型选择",
+        type: "text",
+        placeholder: "留空自动选择",
+        description: "选择要显示的模型名称（留空则自动从用量数据中获取）",
+      },
     ],
   };
 
   private authToken = "";
   private baseUrl = "https://open.bigmodel.cn";
+  private modelName = "";
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.loadConfig();
@@ -100,6 +108,7 @@ export class ZhipuProvider implements AIProvider {
     const config = vscode.workspace.getConfiguration("aiUsageStatus.zhipu");
     this.authToken = config.get("authToken", "");
     this.baseUrl = config.get("baseUrl", "https://open.bigmodel.cn");
+    this.modelName = config.get("modelName", "");
   }
 
   async fetchUsage(): Promise<ProviderUsageData[]> {
@@ -270,13 +279,18 @@ export class ZhipuProvider implements AIProvider {
       };
     }
 
+    // Use configured model name, or fall back to auto-detected names
+    const displayModelName =
+      this.modelName ||
+      (modelNames.length > 0 ? modelNames.join(", ") : undefined);
+
     return [
       {
         providerId: "zhipu",
         providerName: platform,
         primaryUsage,
         metrics,
-        modelName: modelNames.length > 0 ? modelNames.join(", ") : undefined,
+        modelName: displayModelName,
         availableModels: modelNames,
         timeWindow: {
           start: formatDateTime(startDate),
