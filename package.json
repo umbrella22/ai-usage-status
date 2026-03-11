@@ -137,8 +137,8 @@
         "@types/node": "^20.11.0",
         "@types/vscode": "^1.75.0",
         "@vscode/vsce": "^3.7.1",
-        "tsdown": "^0.20.3",
-        "typescript": "^5.7.0"
+        "tsdown": "^0.21.1",
+        "typescript": "^5.9.3"
     },
     "keywords": [
         "ai",
