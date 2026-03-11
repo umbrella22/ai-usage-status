@@ -1,5 +1,5 @@
 /**
- * ZHIPU / ZAI Provider
+ * ZAI / 智谱 Provider
  *
  * Supports both api.z.ai and open.bigmodel.cn endpoints.
  * Queries model usage, tool usage, and quota limits.
@@ -8,6 +8,7 @@
 import * as vscode from "vscode";
 import { httpRequest } from "../utils/http";
 import { formatDateTime } from "../utils/format";
+import { getLanguage, t } from "../ui/i18n";
 import type {
   AIProvider,
   ProviderMeta,
@@ -56,38 +57,39 @@ interface QuotaLimitResponse {
 export class ZhipuProvider implements AIProvider {
   readonly meta: ProviderMeta = {
     id: "zhipu",
-    name: "ZHIPU",
-    description: "ZHIPU/ZAI AI 用量查询",
+    name: "ZAI",
+    description: "ZAI AI usage query",
     configFields: [
       {
         key: "authToken",
-        label: "认证 Token",
+        label: "Auth Token",
         type: "password",
-        placeholder: "请输入认证 Token",
-        description: "ANTHROPIC_AUTH_TOKEN",
+        placeholder: "Enter auth token",
+        description: "ZAI auth token (required)",
         required: true,
       },
       {
         key: "baseUrl",
-        label: "平台地址",
+        label: "Platform URL",
         type: "select",
         options: [
           { label: "ZAI (api.z.ai)", value: "https://api.z.ai" },
           {
-            label: "ZHIPU (open.bigmodel.cn)",
+            label: "ZAI (open.bigmodel.cn)",
             value: "https://open.bigmodel.cn",
           },
         ],
         defaultValue: "https://open.bigmodel.cn",
-        description: "选择平台地址",
+        description: "Select platform URL",
         required: true,
       },
       {
         key: "modelName",
-        label: "模型选择",
+        label: "Model",
         type: "text",
-        placeholder: "留空自动选择",
-        description: "选择要显示的模型名称（留空则自动从用量数据中获取）",
+        placeholder: "Auto-select if empty",
+        description:
+          "Choose the model name to display (auto-detected if empty)",
       },
     ],
   };
@@ -105,6 +107,8 @@ export class ZhipuProvider implements AIProvider {
   }
 
   loadConfig(): void {
+    this.applyLocalization();
+
     const config = vscode.workspace.getConfiguration("aiUsageStatus.zhipu");
     this.authToken = config.get("authToken", "");
     this.baseUrl = config.get("baseUrl", "https://open.bigmodel.cn");
@@ -114,11 +118,15 @@ export class ZhipuProvider implements AIProvider {
   async fetchUsage(): Promise<ProviderUsageData[]> {
     this.loadConfig();
 
+    const language = getLanguage();
+
     if (!this.authToken || !this.baseUrl) {
-      throw new Error("请在设置中配置 ZHIPU 认证 Token 和平台地址");
+      throw new Error(t("provider.zhipu.configError", language));
     }
 
-    const platform = this.baseUrl.includes("api.z.ai") ? "ZAI" : "ZHIPU";
+    const platform = this.baseUrl.includes("api.z.ai")
+      ? "ZAI"
+      : t("provider.zhipu.name", language);
 
     // Build time window: yesterday same hour -> today same hour
     const now = new Date();
@@ -160,7 +168,7 @@ export class ZhipuProvider implements AIProvider {
         headers,
       }).catch((err) => {
         console.error(
-          "[ZHIPU] Model usage fetch failed:",
+          "[zhipu] Model usage fetch failed:",
           (err as Error).message,
         );
         return null;
@@ -171,7 +179,7 @@ export class ZhipuProvider implements AIProvider {
         headers,
       }).catch((err) => {
         console.error(
-          "[ZHIPU] Tool usage fetch failed:",
+          "[zhipu] Tool usage fetch failed:",
           (err as Error).message,
         );
         return null;
@@ -181,7 +189,7 @@ export class ZhipuProvider implements AIProvider {
         headers,
       }).catch((err) => {
         console.error(
-          "[ZHIPU] Quota limit fetch failed:",
+          "[zhipu] Quota limit fetch failed:",
           (err as Error).message,
         );
         return null;
@@ -191,7 +199,7 @@ export class ZhipuProvider implements AIProvider {
     // Parse quota limits
     const metrics: UsageMetric[] = [];
     let primaryUsage: UsageMetric = {
-      label: "Usage",
+      label: t("usageSummary", getLanguage()),
       used: 0,
       total: 100,
       percentage: 0,
@@ -201,7 +209,7 @@ export class ZhipuProvider implements AIProvider {
       for (const limit of quotaResp.data.data.limits) {
         if (limit.type === "TOKENS_LIMIT") {
           const metric: UsageMetric = {
-            label: "Token 用量 (5小时)",
+            label: t("zhipu.tokenUsage5h", getLanguage()),
             used: Math.round(limit.percentage),
             total: 100,
             percentage: limit.percentage,
@@ -211,7 +219,7 @@ export class ZhipuProvider implements AIProvider {
           primaryUsage = metric;
         } else if (limit.type === "TIME_LIMIT") {
           const metric: UsageMetric = {
-            label: "MCP 用量 (月)",
+            label: t("zhipu.mcpUsageMonth", getLanguage()),
             used: limit.currentValue ?? Math.round(limit.percentage),
             total: limit.usage ?? 100,
             percentage: limit.percentage,
@@ -219,7 +227,7 @@ export class ZhipuProvider implements AIProvider {
           };
           metrics.push(metric);
           // Use TIME_LIMIT as primary if no TOKENS_LIMIT
-          if (primaryUsage.label === "Usage") {
+          if (primaryUsage.label === t("usageSummary", getLanguage())) {
             primaryUsage = metric;
           }
         }
@@ -239,7 +247,7 @@ export class ZhipuProvider implements AIProvider {
       }
       if (totalTokens > 0) {
         metrics.push({
-          label: "24h Token 消耗",
+          label: t("provider.zhipu.tokenUsage24h", getLanguage()),
           used: totalTokens,
           total: totalTokens,
           percentage: 100,
@@ -259,7 +267,7 @@ export class ZhipuProvider implements AIProvider {
       }
       if (totalToolCalls > 0) {
         metrics.push({
-          label: "24h 工具调用",
+          label: t("provider.zhipu.toolUsage24h", getLanguage()),
           used: totalToolCalls,
           total: totalToolCalls,
           percentage: 100,
@@ -269,9 +277,12 @@ export class ZhipuProvider implements AIProvider {
     }
 
     // If no metrics from quota, create a summary metric
-    if (primaryUsage.label === "Usage" && totalTokens > 0) {
+    if (
+      primaryUsage.label === t("usageSummary", getLanguage()) &&
+      totalTokens > 0
+    ) {
       primaryUsage = {
-        label: "Token 使用",
+        label: t("provider.zhipu.tokenUsage", getLanguage()),
         used: totalTokens,
         total: totalTokens,
         percentage: 0, // No limit info available
@@ -302,5 +313,45 @@ export class ZhipuProvider implements AIProvider {
 
   dispose(): void {
     // No resources to clean up
+  }
+
+  private applyLocalization(): void {
+    const language = getLanguage();
+
+    this.meta.name = t("provider.zhipu.name", language);
+    this.meta.description = t("provider.zhipu.description", language);
+
+    this.meta.configFields = [
+      {
+        key: "authToken",
+        label: t("provider.zhipu.authToken", language),
+        type: "password",
+        placeholder: t("provider.zhipu.authTokenPlaceholder", language),
+        description: t("provider.zhipu.authTokenDescription", language),
+        required: true,
+      },
+      {
+        key: "baseUrl",
+        label: t("provider.zhipu.baseUrl", language),
+        type: "select",
+        options: [
+          { label: "ZAI (api.z.ai)", value: "https://api.z.ai" },
+          {
+            label: t("provider.zhipu.baseUrlZhipu", language),
+            value: "https://open.bigmodel.cn",
+          },
+        ],
+        defaultValue: "https://open.bigmodel.cn",
+        description: t("provider.zhipu.baseUrlDescription", language),
+        required: true,
+      },
+      {
+        key: "modelName",
+        label: t("provider.zhipu.modelName", language),
+        type: "text",
+        placeholder: t("provider.zhipu.modelNamePlaceholder", language),
+        description: t("provider.zhipu.modelNameDescription", language),
+      },
+    ];
   }
 }

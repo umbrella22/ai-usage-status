@@ -2,15 +2,18 @@
  * AI Usage Status - Extension Entry Point
  *
  * Multi-provider AI usage monitoring for VS Code.
- * Supports MiniMax, ZHIPU/ZAI, and extensible provider architecture.
+ * Supports MiniMax, ZAI/智谱, and extensible provider architecture.
  */
 
 import * as vscode from "vscode";
 import { ProviderRegistry } from "./providers/registry";
 import { StatusBarManager } from "./ui/statusBar";
 import { showSettingsPanel } from "./ui/settingsPanel";
-import { t, getLanguage } from "./ui/i18n";
+import { getLanguage } from "./ui/i18n";
+import { showOnboardingPanel } from "./ui/onboardingPanel";
 import type { ProviderUsageData } from "./types";
+
+const ONBOARDING_STATE_KEY = "aiUsageStatus.hasShownOnboarding";
 
 export function activate(context: vscode.ExtensionContext): void {
   try {
@@ -98,25 +101,17 @@ export function activate(context: vscode.ExtensionContext): void {
     if (activeProviders.length === 0) {
       statusBar.showNeedsConfig();
 
-      // Show welcome message after a brief delay
-      setTimeout(() => {
-        const language = getLanguage();
-        const msg =
-          language === "en-US"
-            ? "Welcome to AI Usage Status! Configure your AI providers to get started."
-            : "欢迎使用 AI Usage Status！请配置您的 AI 供应商以开始使用。";
-        vscode.window
-          .showInformationMessage(
-            msg,
-            language === "en-US" ? "Configure Now" : "立即配置",
-            language === "en-US" ? "Later" : "稍后",
-          )
-          .then((selection) => {
-            if (selection === "立即配置" || selection === "Configure Now") {
-              vscode.commands.executeCommand("aiUsageStatus.setup");
-            }
-          });
-      }, 2000);
+      const hasShownOnboarding = context.globalState.get<boolean>(
+        ONBOARDING_STATE_KEY,
+        false,
+      );
+
+      if (!hasShownOnboarding) {
+        setTimeout(() => {
+          showOnboardingPanel(context, getLanguage());
+          void context.globalState.update(ONBOARDING_STATE_KEY, true);
+        }, 800);
+      }
     } else {
       statusBar.showLoading();
       updateStatus(true);
@@ -133,14 +128,25 @@ export function activate(context: vscode.ExtensionContext): void {
 
     const setupDisposable = vscode.commands.registerCommand(
       "aiUsageStatus.setup",
-      async () => {
+      async (providerId?: string) => {
         const allProviders = registry.getAllProviders();
-        const panel = await showSettingsPanel(context, allProviders, () => {
-          registry.refreshAll();
-          setupInterval();
-          updateStatus(true);
-        });
-        context.subscriptions.push(panel);
+        await showSettingsPanel(
+          context,
+          allProviders,
+          () => {
+            registry.refreshAll();
+            setupInterval();
+            updateStatus(true);
+          },
+          providerId,
+        );
+      },
+    );
+
+    const onboardingDisposable = vscode.commands.registerCommand(
+      "aiUsageStatus.showGettingStarted",
+      () => {
+        showOnboardingPanel(context, getLanguage());
       },
     );
 
@@ -161,6 +167,7 @@ export function activate(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
       refreshDisposable,
       setupDisposable,
+      onboardingDisposable,
       configChangeDisposable,
       {
         dispose: () => {
@@ -176,7 +183,7 @@ export function activate(context: vscode.ExtensionContext): void {
       (error as Error).message,
     );
     vscode.window.showErrorMessage(
-      "AI Usage Status 扩展激活失败: " + (error as Error).message,
+      `${getLanguage() === "en-US" ? "AI Usage Status extension activation failed" : "AI Usage Status 扩展激活失败"}: ${(error as Error).message}`,
     );
   }
 }

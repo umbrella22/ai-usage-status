@@ -62,7 +62,6 @@ export class StatusBarManager {
           vscode.StatusBarAlignment.Right,
           this.nextPriority--,
         );
-        item.command = StatusBarManager.TOOLTIP_SETTINGS_COMMAND;
         item.show();
 
         entry = { item, providerId: data.providerId, subLabel: data.subLabel };
@@ -119,7 +118,7 @@ export class StatusBarManager {
   showError(providerId: string, message: string): void {
     const entry = this.entries.find((e) => e.providerId === providerId);
     if (entry) {
-      entry.item.text = `$(warning) ${providerId}`;
+      entry.item.text = `$(warning) ${this.getDisplayProviderName(providerId)}`;
       entry.item.tooltip = `${t("error")}: ${message}\n${t("clickToRefresh")}`;
       entry.item.color = new vscode.ThemeColor("errorForeground");
     }
@@ -170,7 +169,7 @@ export class StatusBarManager {
     // Status bar text
     const label = subLabel ? `${providerName}(${subLabel})` : providerName;
     if (primaryUsage.unit === "%") {
-      // For ZHIPU-style percentage metrics
+      // For ZAI-style percentage metrics
       item.text = `$(clock) ${label} ${formatPercentage(primaryUsage.percentage)}`;
     } else {
       item.text = `$(clock) ${label} ${formatPercentage(percentage)}`;
@@ -181,11 +180,12 @@ export class StatusBarManager {
     tooltip.isTrusted = true;
     tooltip.supportHtml = true;
     tooltip.supportThemeIcons = true;
+    const settingsCommandUri = this.createSettingsCommandUri(data.providerId);
 
     // Header: Markdown for theme icon + command link support
     const headerTitle = label;
     tooltip.appendMarkdown(
-      `**${headerTitle} Usage** &nbsp; [$(settings-gear)](command:${StatusBarManager.TOOLTIP_SETTINGS_COMMAND})\n\n`,
+      `**${headerTitle} ${t("usageProgress", language)}** &nbsp; [$(settings-gear)](${settingsCommandUri})\n\n`,
     );
     tooltip.appendMarkdown(`---\n\n`);
 
@@ -234,8 +234,8 @@ export class StatusBarManager {
       if (stats.lastDayUsage > 0 || stats.weeklyUsage > 0) {
         tooltip.appendMarkdown(`**${t("tokenStats", language)}**\n\n`);
 
-        const periodLabel = language === "en-US" ? "Period" : "时间段";
-        const tokensLabel = language === "en-US" ? "Tokens" : "用量";
+        const periodLabel = t("period", language);
+        const tokensLabel = t("usageAmount", language);
 
         tooltip.appendMarkdown(
           `<table width="100%"><tr><td><b>${periodLabel}</b></td><td align="right"><b>${tokensLabel}</b></td></tr>` +
@@ -249,7 +249,22 @@ export class StatusBarManager {
     item.tooltip = tooltip;
 
     // Keep item actionable to ensure native hover feedback is visible and stable.
-    item.command = StatusBarManager.TOOLTIP_SETTINGS_COMMAND;
+    item.command = this.createSettingsCommand(data.providerId);
+  }
+
+  private createSettingsCommand(providerId?: string): vscode.Command {
+    return {
+      command: StatusBarManager.TOOLTIP_SETTINGS_COMMAND,
+      title: t("setupCommandTitle"),
+      arguments: providerId ? [providerId] : [],
+    };
+  }
+
+  private createSettingsCommandUri(providerId?: string): string {
+    const args = providerId
+      ? `?${encodeURIComponent(JSON.stringify([providerId]))}`
+      : "";
+    return `command:${StatusBarManager.TOOLTIP_SETTINGS_COMMAND}${args}`;
   }
 
   private createProgressBarDataUri(percentage: number): string {
@@ -259,8 +274,25 @@ export class StatusBarManager {
     const radius = 1.5;
     const filledWidth = Math.round((clamped / 100) * width);
 
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect x="0" y="0" width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="#142F46" />${filledWidth > 0 ? `<rect x="0" y="0" width="${filledWidth}" height="${height}" rx="${radius}" ry="${radius}" fill="#0064BD" />` : ""}</svg>`;
+    let fillColor = "#2EA043";
+    if (clamped >= 85) {
+      fillColor = "#F85149";
+    } else if (clamped >= 60) {
+      fillColor = "#D29922";
+    }
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect x="0" y="0" width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="#2D333B" />${filledWidth > 0 ? `<rect x="0" y="0" width="${filledWidth}" height="${height}" rx="${radius}" ry="${radius}" fill="${fillColor}" />` : ""}</svg>`;
 
     return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  }
+
+  private getDisplayProviderName(providerId: string): string {
+    const language = getLanguage();
+
+    if (providerId === "zhipu") {
+      return t("provider.zhipu.name", language);
+    }
+
+    return providerId;
   }
 }

@@ -1,0 +1,21 @@
+{
+    "extension.description": "Show usage status for multiple AI providers in the VS Code status bar (MiniMax, ZAI/Zhipu, etc.)",
+    "command.setup.title": "AI Usage Status: Setup Wizard",
+    "command.setup.description": "Configure credentials and parameters for AI providers",
+    "command.gettingStarted.title": "AI Usage Status: Getting Started",
+    "command.gettingStarted.description": "View setup and usage guidance shown after first install",
+    "command.refresh.title": "AI Usage Status: Refresh Status",
+    "command.refresh.description": "Refresh all AI provider statuses manually",
+    "config.refreshInterval.description": "Refresh interval in seconds",
+    "config.language.description": "Interface language",
+    "config.providers.description": "AI provider configuration managed via the setup wizard",
+    "config.minimax.enabled.description": "Enable the MiniMax provider",
+    "config.minimax.token.description": "MiniMax API Key",
+    "config.minimax.groupId.description": "MiniMax Group ID",
+    "config.minimax.baseUrl.description": "MiniMax platform URL (domestic/overseas)",
+    "config.minimax.modelName.description": "Model to display (auto-select if empty)",
+    "config.zhipu.enabled.description": "Enable the ZAI / Zhipu provider",
+    "config.zhipu.authToken.description": "ZAI / Zhipu auth token",
+    "config.zhipu.baseUrl.description": "ZAI / Zhipu platform URL",
+    "config.zhipu.modelName.description": "Model to display (auto-detect from usage data if empty)"
+}

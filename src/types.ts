@@ -150,6 +150,7 @@ export interface I18nStrings {
   refreshInterval: string;
   refreshIntervalInfo: string;
   generalSettings: string;
+  aiProviders: string;
 
   // Usage display
   model: string;

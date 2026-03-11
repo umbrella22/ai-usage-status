@@ -8,6 +8,7 @@
 import * as vscode from "vscode";
 import { httpRequest, HttpError } from "../utils/http";
 import { Cache } from "../utils/cache";
+import { getLanguage, t } from "../ui/i18n";
 import type {
   AIProvider,
   ProviderMeta,
@@ -119,6 +120,8 @@ export class MinimaxProvider implements AIProvider {
   }
 
   loadConfig(): void {
+    this.applyLocalization();
+
     const config = vscode.workspace.getConfiguration("aiUsageStatus.minimax");
     this.token = config.get("token", "");
     this.groupId = config.get("groupId", "");
@@ -128,12 +131,15 @@ export class MinimaxProvider implements AIProvider {
 
   async fetchUsage(): Promise<ProviderUsageData[]> {
     this.loadConfig();
+    const language = getLanguage();
 
     if (!this.token || !this.groupId) {
-      throw new Error("请在设置中配置 MiniMax API Key 和 Group ID");
+      throw new Error(t("provider.minimax.configError", language));
     }
 
-    const regionLabel = this.baseUrl.includes("minimax.io") ? "海外" : "国内";
+    const regionLabel = this.baseUrl.includes("minimax.io")
+      ? t("minimax.overseas", language)
+      : t("minimax.domestic", language);
     const usage = await this.fetchEndpointUsage(
       this.baseUrl,
       this.token,
@@ -197,7 +203,7 @@ export class MinimaxProvider implements AIProvider {
     const subscriptionData = subscriptionResp?.data ?? null;
 
     if (!apiData.model_remains || apiData.model_remains.length === 0) {
-      throw new Error("没有可用的使用数据");
+      throw new Error(t("noUsageData", getLanguage()));
     }
 
     // Parse model data
@@ -242,7 +248,7 @@ export class MinimaxProvider implements AIProvider {
       providerName: "MiniMax",
       subLabel,
       primaryUsage: {
-        label: "Coding Plan",
+        label: t("provider.minimax.codingPlan", getLanguage()),
         used: parsed.used,
         total: parsed.total,
         percentage: parsed.percentage,
@@ -250,7 +256,7 @@ export class MinimaxProvider implements AIProvider {
       },
       metrics: [
         {
-          label: "Coding Plan",
+          label: t("provider.minimax.codingPlan", getLanguage()),
           used: parsed.used,
           total: parsed.total,
           percentage: parsed.percentage,
@@ -425,5 +431,54 @@ export class MinimaxProvider implements AIProvider {
     }
 
     return allRecords;
+  }
+
+  private applyLocalization(): void {
+    const language = getLanguage();
+
+    this.meta.description = t("provider.minimax.description", language);
+    this.meta.configFields = [
+      {
+        key: "token",
+        label: t("provider.minimax.token", language),
+        type: "password",
+        placeholder: t("provider.minimax.tokenPlaceholder", language),
+        description: t("provider.minimax.tokenDescription", language),
+        required: true,
+      },
+      {
+        key: "groupId",
+        label: t("provider.minimax.groupId", language),
+        type: "text",
+        placeholder: t("provider.minimax.groupIdPlaceholder", language),
+        description: t("provider.minimax.groupIdDescription", language),
+        required: true,
+      },
+      {
+        key: "baseUrl",
+        label: t("provider.minimax.baseUrl", language),
+        type: "select",
+        options: [
+          {
+            label: t("provider.minimax.baseUrlDomestic", language),
+            value: "https://www.minimaxi.com",
+          },
+          {
+            label: t("provider.minimax.baseUrlOverseas", language),
+            value: "https://www.minimax.io",
+          },
+        ],
+        defaultValue: "https://www.minimaxi.com",
+        description: t("provider.minimax.baseUrlDescription", language),
+        required: true,
+      },
+      {
+        key: "modelName",
+        label: t("provider.minimax.modelName", language),
+        type: "text",
+        placeholder: t("provider.minimax.modelNamePlaceholder", language),
+        description: t("provider.minimax.modelNameDescription", language),
+      },
+    ];
   }
 }

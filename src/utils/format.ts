@@ -65,7 +65,7 @@ export function formatTime(date: Date, timezone = "Asia/Shanghai"): string {
 }
 
 /**
- * Format date range to "yyyy-MM-dd HH:mm:ss" (used by ZHIPU API)
+ * Format date range to "yyyy-MM-dd HH:mm:ss" (used by ZAI/智谱 API)
  */
 export function formatDateTime(date: Date): string {
   const y = date.getFullYear();
